@@ -3,6 +3,7 @@ import json
 import requests 
 import aws_keys
 import pymysql
+import psycopg2
 import pandas as pd
 from sqlalchemy import create_engine
 
@@ -21,7 +22,7 @@ YELP_DELIVERY_PATH = '/v3/transactions/delivery/search'
 YELP_DEFAULT_TERM = 'dinner'
 YELP_DEFAULT_LOCATION = 'New York, NY'
 # YELP_DEFAULT_BUSINESS_ID = 'VJ4fKEeTljlRgCTfYdcs_Q'  # North Italia in Charlotte
-YELP_SEARCH_LIMIT = 20
+YELP_SEARCH_LIMIT = 1
 
 RDS_HOST = aws_keys.YELP_RDS_HOST
 RDS_USER = aws_keys.YELP_RDS_MASTER_USERNAME
@@ -29,9 +30,15 @@ RDS_PASSWORD = aws_keys.YELP_RDS_MASTER_PASSWORD
 RDS_DATABASE = aws_keys.YELP_RDS_NAME
 
 
-def connect_to_RDS_Yelp_DB():
+def connect_to_RDS_Yelp_DB_MySQL():
     connection = pymysql.connect(host=RDS_HOST, user=RDS_USER, password=RDS_PASSWORD, db=RDS_DATABASE) # , RDS_DATABASE)   
     return connection.cursor(), connection
+
+
+def connect_to_RDS_Yelp_DB_PostGRES():
+    connection = psycopg2.connect(host=RDS_HOST, user=RDS_USER, password=RDS_PASSWORD, database=RDS_DATABASE, port=5432) # , RDS_DATABASE)   
+    return connection.cursor(), connection
+
 
 def get_request(api_key, rel_path, base_path, params=None):
     ''' Uses python requests to get information back from the Yelp Fusion API
@@ -49,7 +56,10 @@ def get_request(api_key, rel_path, base_path, params=None):
     }
     print(f"url: {url}")
 
-    response = requests.get(url=url, headers=auth,params=url_params)
+    response = requests.get(url=url, headers=auth, params=url_params)
+
+    if str(response.status_code) != '200':
+        print(f"STATUS CODE {response.status_code}. ADD EXCEPTION HANDLING")
     return response.json()
 
 
@@ -150,11 +160,17 @@ def write_business_details_to_RDS(cursor, conn, api_key, business_id):
     
     print(normalized_biz_dtl)
 
-    normalized_biz_dtl.to_sql('TEST_Business_Details', con=conn, if_exists='append')
+    engine = create_engine(f"mysql+pymysql://{aws_keys.YELP_RDS_MASTER_USERNAME}:{aws_keys.YELP_RDS_MASTER_PASSWORD}@{aws_keys.YELP_RDS_HOST}:3306/{aws_keys.YELP_RDS_NAME}")
+
+
+    normalized_biz_dtl.to_sql('TEST_Business_Details', con=engine, if_exists='append', index=False)
+
+
+    # normalized_biz_dtl.to_sql('TEST_Business_Details', con=conn, if_exists='append')
     
 
 if __name__ == '__main__':
-    # print(search_businesses(YELP_API_KEY, 'italian', 'Charlotte, NC')) # get three restaurants
+    print(search_businesses(YELP_API_KEY, 'italian', 'Charlotte, NC')) # get three restaurants
     # business_detail = get_business_details(YELP_API_KEY, 'jcasci3gjbsSuTEVzvDQKg')
     # print(get_business_details(YELP_API_KEY, 'jcasci3gjbsSuTEVzvDQKg')) # Mama Ricotta's
     # print(get_business_review(YELP_API_KEY, 'jcasci3gjbsSuTEVzvDQKg')) # Mama Ricotta's review
@@ -163,13 +179,13 @@ if __name__ == '__main__':
 
 
 
-    cursor, conn = connect_to_RDS_Yelp_DB()
+    # rds_cursor, rds_connection = connect_to_RDS_Yelp_DB_MySQL()
 
-    write_business_details_to_RDS(cursor, conn,YELP_API_KEY, 'jcasci3gjbsSuTEVzvDQKg')
+    # write_business_details_to_RDS(rds_cursor, rds_connection, YELP_API_KEY, 'jcasci3gjbsSuTEVzvDQKg')
 
     # sql = '''show tables'''
     # cursor.execute(sql)
     # output = cursor.fetchall()
     # print(output)
 
-    conn.close()
+    # rds_connection.close()

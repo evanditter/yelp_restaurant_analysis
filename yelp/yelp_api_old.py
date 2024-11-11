@@ -4,6 +4,7 @@ import json
 import pprint
 import requests
 import sys
+
 # import urllib
 
 from urllib.error import HTTPError
@@ -23,6 +24,8 @@ YELP_BUSINESS_PATH = '/v3/businesses/'
 YELP_DEFAULT_TERM = 'dinner'
 YELP_DEFAULT_LOCATION = 'San Francisco, CA'
 YELP_SEARCH_LIMIT = 3
+
+AWS_HOST = 
 
 
 def request(host, path, api_key, url_params=None):
